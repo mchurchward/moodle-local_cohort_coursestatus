@@ -56,30 +56,34 @@ class local_report_cohort_coursestatus_table extends table_sql {
      * @param object $user the table row being output.
      * @return string HTML content to go inside the td.
      */
-    public function col_status($row) {
+    public function other_cols($column, $row) {
         global $DB;
 
-        if (!empty($row->timecompleted)) {
-            $progress = 100;
-        } else {
-            $total = $DB->count_records('course_completion_criteria', array('course' => $row->courseid));
-            if ($total != 0) {
-                $usercount = $DB->count_records('course_completion_crit_compl', array('course' => $row->courseid, 'userid' => $row->userid));
-                $progress = round($usercount * 100 / $total, 0);
-            } else {
-                $progress = -1;
-            }
+        // Only process columns that are marked incomplete.
+        if ((strpos($column, 'complete') !== 0) || ($row->$column == 'Complete') || empty($row->$column)) {
+            return null;
         }
-        if ($progress == -1) {
-            return get_string('notstarted', 'local_report_users');
+
+        $data = explode('_', $row->$column);
+
+        $select = 'SELECT cm.id, cm.instance, m.name ';
+        $from = 'FROM {course_modules} cm ' .
+            'INNER JOIN {course} c ON cm.course = c.id ' .
+            'INNER JOIN {course_modules_completion} cmc ON cm.id = cmc.coursemoduleid '.
+            'INNER JOIN {modules} m ON cm.module = m.id ' .
+            '';
+        $where = 'WHERE c.id = :courseid AND cmc.userid = :userid AND cmc.completionstate != 0 ' .
+            'AND cmc.timemodified = (SELECT MAX(timemodified) FROM {course_modules_completion} WHERE cmc.userid = :userid2 ' .
+            'AND cmc.completionstate != 0)';
+        $params = ['courseid' => $data[1], 'userid' => $row->userid, 'userid2' => $row->userid];
+        $record = $DB->get_record_sql($select.$from.$where, $params);
+
+        if (empty($record)) {
+            $colval = get_string('notstarted', 'local_report_users');
         } else {
-            if (!$this->is_downloading()) {
-                return '<div class="progress" style="height:20px">
-                        <div class="progress-bar" style="width:' . $progress . '%;height:20px">' . $progress . '%</div>
-                        </div>';
-            } else {
-                return $progress . "%";
-            }
+            $colval = $DB->get_field($record->name, 'name', ['id' => $record->instance]);
         }
+
+        return $colval;
     }
 }

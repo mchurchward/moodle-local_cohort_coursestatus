@@ -292,10 +292,11 @@ $fromsql = '{cohort_members} cm ' .
 $suffix = 1;
 foreach ($reportcourses as $course) {
     $alias = 'lit' . $suffix;
+    $sqlconcat = $DB->sql_concat("'incomplete_'", $alias.'.courseid');
     $selectsql .= ', ' .
         'CASE ' .
         'WHEN '.$alias.'.timecompleted IS NOT NULL THEN "Complete" ' .
-        'ELSE "Incomplete" '.
+        'ELSE '.$sqlconcat.' '.
         'END as completed' . $suffix;
     $fromsql .= 'LEFT JOIN {local_iomad_track} as ' . $alias . ' ON cu.userid = '.$alias.'.userid AND '.$alias.'.courseid = ' .
         $course->id . ' AND ' . $alias . '.id = ' .
