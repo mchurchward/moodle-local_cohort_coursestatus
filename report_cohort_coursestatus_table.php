@@ -83,20 +83,24 @@ class local_report_cohort_coursestatus_table extends table_sql {
 
         $select = 'SELECT cm.id, cm.instance, m.name ';
         $from = 'FROM {course_modules} cm ' .
-            'INNER JOIN {course} c ON cm.course = c.id ' .
             'INNER JOIN {course_modules_completion} cmc ON cm.id = cmc.coursemoduleid '.
             'INNER JOIN {modules} m ON cm.module = m.id ' .
             '';
-        $where = 'WHERE c.id = :courseid AND cmc.userid = :userid AND cmc.completionstate != 0 ' .
-            'AND cmc.timemodified = (SELECT MAX(timemodified) FROM {course_modules_completion} WHERE cmc.userid = :userid2 ' .
-            'AND cmc.completionstate != 0)';
+        $where = 'WHERE cm.course = :courseid AND cmc.userid = :userid AND cmc.completionstate != 0 ';
+        $order = 'ORDER BY cmc.timemodified DESC ';
         $params = ['courseid' => $row->$coursecolname, 'userid' => $row->userid, 'userid2' => $row->userid];
-        $record = $DB->get_record_sql($select.$from.$where, $params);
 
-        if (empty($record)) {
-            $colval = get_string('notstarted', 'local_report_users');
-        } else {
-            $colval = $DB->get_field($record->name, 'name', ['id' => $record->instance]);
+        // Limit the return set to one, so we get the one with the largest timemodified value.
+        $records = $DB->get_records_sql($select.$from.$where.$order, $params, 0, 1);
+
+        $colval = null;
+        if (!empty($records)) {
+            $record = reset($records);
+            if (empty($record)) {
+                $colval = get_string('notstarted', 'local_report_users');
+            } else {
+                $colval = $DB->get_field($record->name, 'name', ['id' => $record->instance]);
+            }
         }
 
         return $colval;
