@@ -59,12 +59,27 @@ class local_report_cohort_coursestatus_table extends table_sql {
     public function other_cols($column, $row) {
         global $DB;
 
-        // Only process columns that are marked incomplete.
-        if ((strpos($column, 'complete') !== 0) || ($row->$column == 'Complete') || empty($row->$column)) {
+        $completecolname = 'completed';
+
+        // Only process 'completed' columns.
+        if (strpos($column, $completecolname) !== 0) {
             return null;
         }
 
-        $data = explode('_', $row->$column);
+        // The completed time is in column named 'completed' followed by a digit. The course id if valid is found in a column named
+        // 'courseid' followed by the same digit.
+        $index = substr($column, strlen($completecolname));
+        $coursecolname = 'courseid' . $index;
+
+        // Only process columns where the user has a course record. If another indicator is needed, this is where it should be set.
+        if (empty($row->$coursecolname)) {
+            return null;
+        }
+
+        // If the course is completed, indicate that.
+        if (!empty($row->$column)) {
+            return get_string('complete');
+        }
 
         $select = 'SELECT cm.id, cm.instance, m.name ';
         $from = 'FROM {course_modules} cm ' .
@@ -75,7 +90,7 @@ class local_report_cohort_coursestatus_table extends table_sql {
         $where = 'WHERE c.id = :courseid AND cmc.userid = :userid AND cmc.completionstate != 0 ' .
             'AND cmc.timemodified = (SELECT MAX(timemodified) FROM {course_modules_completion} WHERE cmc.userid = :userid2 ' .
             'AND cmc.completionstate != 0)';
-        $params = ['courseid' => $data[1], 'userid' => $row->userid, 'userid2' => $row->userid];
+        $params = ['courseid' => $row->$coursecolname, 'userid' => $row->userid, 'userid2' => $row->userid];
         $record = $DB->get_record_sql($select.$from.$where, $params);
 
         if (empty($record)) {

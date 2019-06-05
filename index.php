@@ -293,11 +293,7 @@ $suffix = 1;
 foreach ($reportcourses as $course) {
     $alias = 'lit' . $suffix;
     $sqlconcat = $DB->sql_concat("'incomplete_'", $alias.'.courseid');
-    $selectsql .= ', ' .
-        'CASE ' .
-        'WHEN '.$alias.'.timecompleted IS NOT NULL THEN "Complete" ' .
-        'ELSE '.$sqlconcat.' '.
-        'END as completed' . $suffix;
+    $selectsql .= ', ' . $alias . '.timecompleted as completed' . $suffix . ', ' . $alias . '.courseid as courseid' . $suffix;
     $fromsql .= 'LEFT JOIN {local_iomad_track} as ' . $alias . ' ON cu.userid = '.$alias.'.userid AND '.$alias.'.courseid = ' .
         $course->id . ' AND ' . $alias . '.id = ' .
             '(SELECT MAX(id) FROM {local_iomad_track} WHERE userid=cu.userid AND courseid='.$course->id.') ';
